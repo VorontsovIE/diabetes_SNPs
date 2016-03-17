@@ -42,6 +42,7 @@ def merge_bed_files(files, output_file)
   end
 end
 
+# (method has duplicate in `count_affected_sites.rb`)
 # Hocomoco10 expected
 def all_sites_in_file(filename, motif_collection:,
                                 precalulated_thresholds:,
@@ -89,24 +90,23 @@ task 'extract_peak_sequences' => ['results/sequences/'] do
   Dir.glob('results/panchipseq_peaks/*.bed').each{|filename|
     uniprot = File.basename(filename,'.bed')
     species = uniprot.split('_').last.downcase
-    # multifasta = GenomeRegion.each_in_file(filename).map{|region|
-    #   seq = GENOME_READER[species].read_sequence(region.chromosome, ZERO_BASED_EXCLUSIVE, region.from, region.to)
-    #   "> #{region.chromosome}:#{region.from}-#{region.to}\n#{seq}"
-    # }.join("\n")
-    # File.write("results/sequences/#{uniprot}.mfa", multifasta)
     system 'ruby', 'extract_multifasta.rb',
             filename, species,
             out: "results/sequences/#{uniprot}.mfa"
   }
+
+  system 'ruby', 'extract_multifasta.rb',
+          'source_data/chromatin_accesibility/adipocytes/combined.bed', 'human',
+          out: "results/accessible_sequences/adipocytes_human.mfa"
 end
 
 desc 'Calculate positions of sites'
 task 'site_positions' => ['results/confident_sites/', 'results/accessible_sites/'] do
   Dir.glob('source_data/motif_collections/*/*.pwm').each do |motif_filename|
     motif_name = File.basename(motif_filename, '.pwm')
-    uniprot = motif_name.split('.').first
+    # uniprot = motif_name.split('.').first
     # sequences_filename = "results/sequences/#{uniprot}.mfa"
-    sequences_filename = "results/accessible_sequences/adipocytes.mfa"
+    sequences_filename = "results/accessible_sequences/adipocytes_human.mfa"
     next  unless File.exist?(sequences_filename)
 
     system('ruby', 'site_occurences.rb',
@@ -118,21 +118,24 @@ task 'site_positions' => ['results/confident_sites/', 'results/accessible_sites/
 end
 
 desc 'Extract SNP sequences'
-task 'extract_SNP_sequences' => ['source_data/snp_sequences/'] do
-  Dir.glob('source_data/snp_infos/*.vcf').each do |filename|
+task 'extract_SNP_sequences' do
+  output_folder = 'results/snp_sequences/'
+  mkdir_p output_folder  unless Dir.exist?(output_folder)
+  Dir.glob('results/snp_infos*/*.vcf').each do |filename|
     basename = File.basename(filename,'.vcf')
     system 'ruby', 'snv_sequences.rb', filename,
+            '--species', 'human',
             '--chromosome-prefix',
             '--skip-nonexistent-chromosomes',
             '--reject-multiallele-snvs',
             '--flank-length', FLANK_LENGTH.to_s,
-            out: "source_data/snp_sequences/#{basename}.txt"
+            out: File.join(output_folder, "#{basename}.txt")
   end
 end
 
 desc 'Find affected sites'
 task 'affected_sites' => ['results/affected_sites/', 'results/affected_sites_adipocytes/', 'results/affected_sites_pancreas/'] do
-  Dir.glob('source_data/snp_sequences/*').each do |snp_sequences_filename|
+  Dir.glob('results/snp_sequences/*').each do |snp_sequences_filename|
     basename = File.basename(snp_sequences_filename)
 
     all_affected_sites = all_sites_in_file(
@@ -149,7 +152,7 @@ task 'affected_sites' => ['results/affected_sites/', 'results/affected_sites_adi
       # Dir.glob("results/confident_sites/*_HUMAN.*.txt").each do |confident_sites_filename|
         motif_name = File.basename(confident_sites_filename, '.txt').to_sym
         next  unless all_affected_sites.has_key?(motif_name)
-        confident_regions = SiteRegion.from_file_by_chromosome(confident_sites_filename)      
+        confident_regions = SiteRegion.from_file_by_chromosome(confident_sites_filename)
         
         all_affected_sites[motif_name].select{|site|
           site.disrupted?(fold_change_cutoff: 4) || site.emerged?(fold_change_cutoff: 4)
@@ -164,10 +167,24 @@ task 'affected_sites' => ['results/affected_sites/', 'results/affected_sites_adi
           fw.puts site
         }
         fw.flush
-
       end
     end
+  end
+end
 
+
+desc 'Find affected sites (not taking ChIP-Seq into account)'
+task 'affected_sites_wo_chipseq' do
+  output_folder = 'results/affected_sites/'
+  mkdir_p(output_folder)  unless Dir.exist?(output_folder)
+
+  Dir.glob('results/snp_sequences/*').each do |filename|
+    basename = File.basename(filename)
+    system('ruby', 'count_affected_sites.rb', filename, 
+                    '--fold-change-direction', 'any',
+                    '--fold-change-cutoff', 4.to_s,
+                    '--pvalue-cutoff', PVALUE_CUTOFF.to_s,
+                    out: File.join(output_folder, basename))    
   end
 end
 
@@ -186,7 +203,7 @@ desc 'Convert vcf files into bed files with SNP positions'
 task 'snp_positions_2bed' do
   Dir.glob('source_data/snp_infos/*.vcf') do |filename|
     bed_filename = File.join('source_data/snp_infos/', File.basename(filename,'.vcf') + '.bed')
-    File.write bed_filename, VCFInfo.snps_in_file(filename).map(&:to_bed_positions).join("\n")
+    File.write bed_filename, VCFInfo.each_in_file(filename).select(&:snp?).map(&:to_bed_positions).join("\n")
   end
 end
 
@@ -203,7 +220,7 @@ end
 
 desc 'Extract nearby SNPs'
 task 'extract_nearby_snps' do
-  output_folder = 'results/snp_infos_expanded'
+  output_folder = 'results/snp_infos_extended'
   mkdir_p output_folder  unless Dir.exist?(output_folder)
   Dir.glob('results/snp_infos/*.vcf') do |filename|
     basename = File.basename(filename, '.vcf')
@@ -222,6 +239,8 @@ task 'make_all' do
   Rake::Task['extract_peak_sequences'].invoke
   Rake::Task['site_positions'].invoke
   
+  Rake::Task['extract_vcf_infos'].invoke
+  Rake::Task['extract_nearby_snps'].invoke
   Rake::Task['extract_SNP_sequences'].invoke
   Rake::Task['affected_sites'].invoke
 end
@@ -232,3 +251,4 @@ end
 # bedtools intersect -a results/human_promoters.bed -b results/panchipseq_peaks_human.bed > results/human_regulatory_promoter.bed
 
 # bedtools intersect -a source_data/chromatine_accesibility/adipocytes/combined.bed -b source_data/snp_infos/t2d_snps_chr.vcf | awk '{print $1":"$2}' | grep -f - source_data/snp_sequences/t2d_snps.txt 
+

@@ -1,7 +1,7 @@
 VCFInfo = Struct.new(:chromosome, :position, :reference_allele, :non_reference_alleles, :variant_name) do
   def self.from_string(str)
     chromosome, position, variant_name, reference_allele, non_reference_alleles, *rest = str.chomp.split("\t")
-    self.new(chromosome, position.to_i, reference_allele, non_reference_alleles.split(','), variant_name)
+    self.new(chromosome, position.to_i, reference_allele.upcase, non_reference_alleles.upcase.split(','), variant_name)
   end
 
   def self.each_in_file(filename, &block)
@@ -23,7 +23,7 @@ VCFInfo = Struct.new(:chromosome, :position, :reference_allele, :non_reference_a
   end
 
   def snp?
-    [reference_allele, *non_reference_alleles].all?{|allele| allele.length == 1 }
+    [reference_allele, *non_reference_alleles].all?{|allele| allele.length == 1 && ['A','C','G','T'].include?(allele) }
   end
 
   def to_s

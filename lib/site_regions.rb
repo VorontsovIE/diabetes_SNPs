@@ -1,4 +1,5 @@
 require 'bioinform'
+require 'interval_notation'
 require_relative 'sarus'
 require_relative 'genome_region'
 
@@ -27,6 +28,11 @@ SiteRegion = Struct.new(:region, :strand, :score, :oriented_sequence) do
   end
   def to_s
     [region.to_joint_string, strand, score, oriented_sequence].join("\t")
+  end
+
+  # score not-normed
+  def to_bed_string
+    [region.chromosome, region.from - 1, region.to, oriented_sequence, score, strand].join("\t")
   end
 
   def self.occurence_in_regions(sequences_filename:, motif_filename:, threshold:)

@@ -36,7 +36,7 @@ nonexistent_chromosome_checker = ->(info){
   !$genome_reader.chromosome_exist?(chromosome_name)
 }
 
-snps = VCFInfo.snps_in_file(filename).to_a
+snps = VCFInfo.each_in_file(filename).select(&:snp?).to_a
 
 if reject_multiallele_snvs
   snps.reject!{|info|

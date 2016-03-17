@@ -19,4 +19,4 @@ occurences = SiteRegion.occurence_in_regions(
   motif_filename: motif_filename,
   threshold: threshold)
 
-puts occurences
+puts occurences.map(&:to_bed_string)
