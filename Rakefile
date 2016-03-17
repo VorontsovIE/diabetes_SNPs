@@ -192,12 +192,26 @@ end
 
 desc 'Extract VCF infos'
 task 'extract_vcf_infos' do
-  output_folder = 'results/snv_infos/'
+  output_folder = 'results/snp_infos/'
   mkdir_p(output_folder)  unless Dir.exist?(output_folder)
   Dir.glob('source_data/snps/*.tsv') do |filename|
     basename = File.basename(filename, '.tsv')
     output_filename = File.join(output_folder, "#{basename}.vcf")
     system 'ruby', 'filter_SNPs.rb', filename, out: output_filename
+  end
+end
+
+desc 'Extract nearby SNPs'
+task 'extract_nearby_snps' do
+  output_folder = 'results/snp_infos_expanded'
+  mkdir_p output_folder  unless Dir.exist?(output_folder)
+  Dir.glob('results/snp_infos/*.vcf') do |filename|
+    basename = File.basename(filename, '.vcf')
+    output_filename = File.join(output_folder, "#{basename}_25k.vcf")
+    system 'ruby', 'extract_nearby_snps.rb', filename,
+                  '--flank-length', 25000.to_s,
+                  '--species', 'human',
+                  out: output_filename
   end
 end
 
