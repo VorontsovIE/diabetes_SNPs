@@ -145,7 +145,7 @@ task 'affected_sites' => ['results/affected_sites/', 'results/affected_sites_adi
     ).group_by(&:motif_name)
 
     # all_affected_sites.default_proc = ->(h,k){ h[k] = [] }
-    
+
     File.open("results/affected_sites_adipocytes/#{basename}", 'w') do |fw|
     # File.open("results/affected_sites/#{basename}", 'w') do |fw|
       Dir.glob("results/accessible_sites/*_HUMAN.*.txt").each do |confident_sites_filename|
@@ -153,7 +153,7 @@ task 'affected_sites' => ['results/affected_sites/', 'results/affected_sites_adi
         motif_name = File.basename(confident_sites_filename, '.txt').to_sym
         next  unless all_affected_sites.has_key?(motif_name)
         confident_regions = SiteRegion.from_file_by_chromosome(confident_sites_filename)
-        
+
         all_affected_sites[motif_name].select{|site|
           site.disrupted?(fold_change_cutoff: 4) || site.emerged?(fold_change_cutoff: 4)
         }.select{|site|
@@ -173,20 +173,35 @@ task 'affected_sites' => ['results/affected_sites/', 'results/affected_sites_adi
 end
 
 
-desc 'Find affected sites (not taking ChIP-Seq into account)'
+desc 'Count affected sites (not taking ChIP-Seq into account)'
 task 'affected_sites_wo_chipseq' do
   output_folder = 'results/affected_sites/'
   mkdir_p(output_folder)  unless Dir.exist?(output_folder)
 
   Dir.glob('results/snp_sequences/*').each do |filename|
     basename = File.basename(filename)
-    system('ruby', 'count_affected_sites.rb', filename, 
+    system('ruby', 'count_affected_sites.rb', filename,
                     '--fold-change-direction', 'any',
                     '--fold-change-cutoff', 4.to_s,
                     '--pvalue-cutoff', PVALUE_CUTOFF.to_s,
-                    out: File.join(output_folder, basename))    
+                    out: File.join(output_folder, basename))
   end
 end
+
+desc 'Count all sites (not taking ChIP-Seq into account)'
+task 'nonaffected_sites_wo_chipseq' do
+  output_folder = 'results/affected_sites/'
+  mkdir_p(output_folder)  unless Dir.exist?(output_folder)
+
+  Dir.glob('results/snp_sequences/*').each do |filename|
+    basename = File.basename(filename)
+    system('ruby', 'count_affected_sites.rb', filename,
+                    '--no-filter-by-fold-change',
+                    '--pvalue-cutoff', PVALUE_CUTOFF.to_s,
+                    out: File.join(output_folder, basename))
+  end
+end
+
 
 desc 'Create auxiliary .genome files'
 task 'create_genome_files' => 'source_data/genome_sizes/' do
@@ -238,7 +253,7 @@ task 'make_all' do
   Rake::Task['panChIPSeq'].invoke
   Rake::Task['extract_peak_sequences'].invoke
   Rake::Task['site_positions'].invoke
-  
+
   Rake::Task['extract_vcf_infos'].invoke
   Rake::Task['extract_nearby_snps'].invoke
   Rake::Task['extract_SNP_sequences'].invoke
@@ -250,5 +265,5 @@ end
 # bedtools flank -i source_data/knownGene.txt -g source_data/genome_sizes/human.genome -l 5000 -r 500 -s > results/human_promoters.bed
 # bedtools intersect -a results/human_promoters.bed -b results/panchipseq_peaks_human.bed > results/human_regulatory_promoter.bed
 
-# bedtools intersect -a source_data/chromatine_accesibility/adipocytes/combined.bed -b source_data/snp_infos/t2d_snps_chr.vcf | awk '{print $1":"$2}' | grep -f - source_data/snp_sequences/t2d_snps.txt 
+# bedtools intersect -a source_data/chromatine_accesibility/adipocytes/combined.bed -b source_data/snp_infos/t2d_snps_chr.vcf | awk '{print $1":"$2}' | grep -f - source_data/snp_sequences/t2d_snps.txt
 
