@@ -190,6 +190,17 @@ task 'snp_positions_2bed' do
   end
 end
 
+desc 'Extract VCF infos'
+task 'extract_vcf_infos' do
+  output_folder = 'results/snv_infos/'
+  mkdir_p(output_folder)  unless Dir.exist?(output_folder)
+  Dir.glob('source_data/snps/*.tsv') do |filename|
+    basename = File.basename(filename, '.tsv')
+    output_filename = File.join(output_folder, "#{basename}.vcf")
+    system 'ruby', 'filter_SNPs.rb', filename, out: output_filename
+  end
+end
+
 desc 'Make all'
 task 'make_all' do
   Rake::Task['normalize_peak_names'].invoke
