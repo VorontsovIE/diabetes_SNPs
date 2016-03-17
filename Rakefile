@@ -186,7 +186,7 @@ desc 'Convert vcf files into bed files with SNP positions'
 task 'snp_positions_2bed' do
   Dir.glob('source_data/snp_infos/*.vcf') do |filename|
     bed_filename = File.join('source_data/snp_infos/', File.basename(filename,'.vcf') + '.bed')
-    File.write bed_filename, VCFInfo.each_in_file(filename).map(&:to_bed_positions).join("\n")
+    File.write bed_filename, VCFInfo.snps_in_file(filename).map(&:to_bed_positions).join("\n")
   end
 end
 

@@ -18,8 +18,7 @@ OptionParser.new{|opts|
 }.parse!(ARGV)
 
 genome_size_file = "source_data/genome_sizes/#{species}.genome"
-cmd = "ruby vcf2bed.rb | bedtools slop -b #{flank_length} -g #{genome_size_file} | bedtools intersect -a #{All_SNPs_VCF} -b stdin"
-
+cmd = "ruby vcf2bed.rb | bedtools slop -b #{flank_length} -g #{genome_size_file} | bedtools intersect -a #{All_SNPs_VCF} -b stdin | ruby leave_vcf_snps_only.rb"
 
 if $stdin.tty?
   raise 'Specify input file or put data into input stream'  unless filename = ARGV[0]
