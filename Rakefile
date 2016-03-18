@@ -190,7 +190,7 @@ end
 
 desc 'Count all sites (not taking ChIP-Seq into account)'
 task 'nonaffected_sites_wo_chipseq' do
-  output_folder = 'results/affected_sites/'
+  output_folder = 'results/nonaffected_sites/'
   mkdir_p(output_folder)  unless Dir.exist?(output_folder)
 
   Dir.glob('results/snp_sequences/*').each do |filename|

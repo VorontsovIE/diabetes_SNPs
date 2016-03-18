@@ -13,8 +13,6 @@ OptionParser.new{|opts|
     species = value.downcase
     raise 'Specify human or mouse'  unless species
   }
-
-  opts.on('')
 }.parse!(ARGV)
 
 genome_size_file = "source_data/genome_sizes/#{species}.genome"
