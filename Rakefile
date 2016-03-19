@@ -133,44 +133,44 @@ task 'extract_SNP_sequences' do
   end
 end
 
-desc 'Find affected sites'
-task 'affected_sites' => ['results/affected_sites/', 'results/affected_sites_adipocytes/', 'results/affected_sites_pancreas/'] do
-  Dir.glob('results/snp_sequences/*').each do |snp_sequences_filename|
-    basename = File.basename(snp_sequences_filename)
+# desc 'Find affected sites'
+# task 'affected_sites' => ['results/affected_sites/', 'results/affected_sites_adipocytes/', 'results/affected_sites_pancreas/'] do
+#   Dir.glob('results/snp_sequences/*').each do |snp_sequences_filename|
+#     basename = File.basename(snp_sequences_filename)
 
-    all_affected_sites = all_sites_in_file(
-      snp_sequences_filename,
-      motif_collection: 'source_data/motif_collections/human/',
-      precalulated_thresholds: 'source_data/motif_thresholds/human/'
-    ).group_by(&:motif_name)
+#     all_affected_sites = all_sites_in_file(
+#       snp_sequences_filename,
+#       motif_collection: 'source_data/motif_collections/human/',
+#       precalulated_thresholds: 'source_data/motif_thresholds/human/'
+#     ).group_by(&:motif_name)
 
-    # all_affected_sites.default_proc = ->(h,k){ h[k] = [] }
+#     # all_affected_sites.default_proc = ->(h,k){ h[k] = [] }
 
-    File.open("results/affected_sites_adipocytes/#{basename}", 'w') do |fw|
-    # File.open("results/affected_sites/#{basename}", 'w') do |fw|
-      Dir.glob("results/accessible_sites/*_HUMAN.*.txt").each do |confident_sites_filename|
-      # Dir.glob("results/confident_sites/*_HUMAN.*.txt").each do |confident_sites_filename|
-        motif_name = File.basename(confident_sites_filename, '.txt').to_sym
-        next  unless all_affected_sites.has_key?(motif_name)
-        confident_regions = SiteRegion.from_file_by_chromosome(confident_sites_filename)
+#     File.open("results/affected_sites_adipocytes/#{basename}", 'w') do |fw|
+#     # File.open("results/affected_sites/#{basename}", 'w') do |fw|
+#       Dir.glob("results/accessible_sites/*_HUMAN.*.txt").each do |confident_sites_filename|
+#       # Dir.glob("results/confident_sites/*_HUMAN.*.txt").each do |confident_sites_filename|
+#         motif_name = File.basename(confident_sites_filename, '.txt').to_sym
+#         next  unless all_affected_sites.has_key?(motif_name)
+#         confident_regions = SiteRegion.from_file_by_chromosome(confident_sites_filename)
 
-        all_affected_sites[motif_name].select{|site|
-          site.disrupted?(fold_change_cutoff: 4) || site.emerged?(fold_change_cutoff: 4)
-        }.select{|site|
-          site.has_site_on_any_allele?(pvalue_cutoff: 0.0005)
-        }.select{|site|
-          variant_id, genome_pos = site.variant_id.split('@')
-          chromosome, pos = genome_pos.split(':')
-          pos = pos.to_i
-          confident_regions[chromosome].include_position?(pos)
-        }.each{|site|
-          fw.puts site
-        }
-        fw.flush
-      end
-    end
-  end
-end
+#         all_affected_sites[motif_name].select{|site|
+#           site.disrupted?(fold_change_cutoff: 4) || site.emerged?(fold_change_cutoff: 4)
+#         }.select{|site|
+#           site.has_site_on_any_allele?(pvalue_cutoff: 0.0005)
+#         }.select{|site|
+#           variant_id, genome_pos = site.variant_id.split('@')
+#           chromosome, pos = genome_pos.split(':')
+#           pos = pos.to_i
+#           confident_regions[chromosome].include_position?(pos)
+#         }.each{|site|
+#           fw.puts site
+#         }
+#         fw.flush
+#       end
+#     end
+#   end
+# end
 
 
 desc 'Count affected sites (not taking ChIP-Seq into account)'
@@ -257,7 +257,8 @@ task 'make_all' do
   Rake::Task['extract_vcf_infos'].invoke
   Rake::Task['extract_nearby_snps'].invoke
   Rake::Task['extract_SNP_sequences'].invoke
-  Rake::Task['affected_sites'].invoke
+  Rake::Task['affected_sites_wo_chipseq'].invoke
+  Rake::Task['nonaffected_sites_wo_chipseq'].invoke
 end
 
 # cat results/panchipseq_peaks/*_MOUSE.bed | bedtools slop -b 50 -g source_data/genome_sizes/mouse.genome | bedtools sort | bedtools merge > results/panchipseq_peaks_mouse.bed

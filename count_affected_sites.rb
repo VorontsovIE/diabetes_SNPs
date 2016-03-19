@@ -32,8 +32,12 @@ fold_change_cutoff = 4
 fold_change_direction = :any # count both disruption and emergence events
 filter_by_fold_change = true
 
+should_have_site_before = nil
+should_have_site_after = nil
+
 chipseq_files_pattern = nil
 # accessibility_filename = nil
+
 
 OptionParser.new{|opts|
   opts.on('--pvalue-cutoff CUTOFF', 'Specify P-value cutoff for site recognition') {|value| pvalue_cutoff = Float(value) }
@@ -43,6 +47,9 @@ OptionParser.new{|opts|
     raise 'Fold change direction should be one of disruption/emergence/any'  unless [:disruption, :emergence, :any].include?(fold_change_direction)
   }
   
+  opts.on('--site-before', 'Oblige original allele have site') { should_have_site_before = true }
+  opts.on('--site-after', 'Oblige original allele have site') { should_have_site_after = true }
+
   # FILE_PATTERN example "results/confident_sites/*_HUMAN.*.txt"
   opts.on('--chip-seq-intervals FILE_PATTERN', 'Specify pattern for files with intervals of ChIP-Seq sites'){|value|
     chipseq_files_pattern = value
@@ -84,6 +91,14 @@ if filter_by_fold_change
   }
 else
   all_affected_sites = all_sites
+end
+
+if should_have_site_before
+  all_affected_sites = all_affected_sites.select{|site| site.site_before_substitution?(pvalue_cutoff: pvalue_cutoff) }
+end
+
+if should_have_site_after
+  all_affected_sites = all_affected_sites.select{|site| site.site_after_substitution?(pvalue_cutoff: pvalue_cutoff) }
 end
 
 sites = all_affected_sites
